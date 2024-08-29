@@ -117,7 +117,12 @@ export default function Home() {
     set_j2_rotate(angle1)
     set_j3_rotate(angle2)
     const wkdeg = degree(wk_node1pos,wk_node2pos)
-    set_j4_rotate(wrist_deg - wkdeg.x)
+    if((Math.sign(wk_node2pos.x) !== Math.sign(wk_node3pos.x) && Math.sign(wk_node2pos.z) !== Math.sign(wk_node3pos.z)) ||
+      (wk_node2pos.x === 0 && wk_node3pos.x === 0) || (wk_node2pos.z === 0 && wk_node3pos.z === 0)){
+      set_j4_rotate(-wkdeg.x - wrist_deg)
+    }else{
+      set_j4_rotate(wrist_deg - wkdeg.x)
+    }
   }
 
   const degree_base = (s_pos, t_pos, side_a, side_b)=>{
