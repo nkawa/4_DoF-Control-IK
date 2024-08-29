@@ -8,12 +8,13 @@ export default function Home() {
   const [rendered, set_rendered] = React.useState(false)
   const [trigger, set_trigger] = React.useState(false)
   const [grip, set_grip] = React.useState(false)
+  const [grip_state, set_grp_state] = React.useState(0)
   const robotNameList = ["4_DoF"]
   const [robotName, set_robotName] = React.useState(robotNameList[0])
   const [j1_rotate, set_j1_rotate] = React.useState(0)
   const [j2_rotate, set_j2_rotate] = React.useState(0)
   const [j3_rotate, set_j3_rotate] = React.useState(0)
-  const [j4_rotate, set_j4_rotate] = React.useState(-90)
+  const [j4_rotate, set_j4_rotate] = React.useState(0)
   const [j5_rotate, set_j5_rotate] = React.useState(0)
   const [c_pos_x, set_c_pos_x] = React.useState(0)
   const [c_pos_y, set_c_pos_y] = React.useState(0) // 0.25
@@ -25,7 +26,7 @@ export default function Home() {
   const [target, set_target] = React.useState({ x: 0, y: 0.5, z: 0 })
   const [joint_length, set_joint_length] = React.useState([])
   const [nodes, set_nodes] = React.useState([])
-  const [wrist_deg, set_wrist_deg] = React.useState(0)
+  const [wrist_deg, set_wrist_deg] = React.useState(90)
   const [box_scale, set_box_scale] = React.useState("0.02 0.02 0.02")
   const [box_visible, set_box_visible] = React.useState(false)
   let registered = false
@@ -68,11 +69,71 @@ export default function Home() {
     ])
   }, [])
 
+  const open_gripper = () => {
+    if (grip && j5_rotate < 60) {
+      set_j5_rotate((grp) => grp + 3);
+      set_grip((cur) => {
+        if (cur) {// grip が真の間 openする
+          setTimeout(open_gripper, 100);
+        }
+        cur;
+      });
+    }
+  }
+  const close_gripper = () => {
+    if (trigger && j5_rotate > 0) {
+      set_j5_rotate((grp) => grp - 3);
+      set_trigger((cur) => {
+        if (cur) {// trigger が真の間 close;
+          setTimeout(close_gripper, 100);
+        }
+        cur;
+      });
+    }
+  }
+
+  //トリガ―押してる間はつかむ
+  React.useEffect(() => {
+    if (trigger) {
+      close_gripper();
+    }
+  }, [trigger])
+
+  //Gripで離す　60がmax
+  React.useEffect(() => {
+    if (grip) {
+      open_gripper();
+    }
+  }, [grip])
+
+  React.useEffect(() => {
+    if (mqttclient != null) {
+      const msg = JSON.stringify(
+        {
+          grip,
+          toggle,
+          pos: target,
+          ori: { x: 0, y: 0, z: 0 },
+          rotate: [j1_rotate, j2_rotate, j3_rotate, j4_rotate, j5_rotate],
+        }
+      );
+      // 毎回送るのはよくないと思うけどな。。。
+      mqttclient.publish('lss4dof/state', msg);
+    } else {
+      //      console.log("MQTT ", mqttclient);
+    }
+  }, [j1_rotate, j2_rotate, j3_rotate, j4_rotate, j5_rotate])
+
+
+
   React.useEffect(() => {
     if (nodes.length > 0) {
       WRIST_IK(source, target, nodes)
     }
   }, [target, wrist_deg])
+
+
+
 
   const WRIST_IK = (st, tg, nd) => {
     const wknd = [...nd]
@@ -207,6 +268,10 @@ export default function Home() {
 
         add_vr_component(AFRAME, { set_target, set_grip, set_trigger });
         VR_mode_detector(AFRAME);
+
+        // mqtt
+        console.log("Connecting MQTT");
+        connectMQTT(() => (0));
       }
     }
   }, [typeof window])
