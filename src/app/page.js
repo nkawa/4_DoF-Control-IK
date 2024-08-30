@@ -121,7 +121,7 @@ export default function Home() {
       const msg = JSON.stringify(
         {
           grip,
-          toggle,
+          trigger,
           pos: target,
           ori: { x: 0, y: 0, z: 0 },
           rotate: [j1_rotate, j2_rotate, j3_rotate, j4_rotate, j5_rotate],
@@ -143,7 +143,7 @@ export default function Home() {
   }, [target, wrist_deg])
 
 
-  const WRIST_IK = (st,tg,nd)=>{
+  const WRIST_IK = (st, tg, nd) => {
     const wknd = [...nd]  //関節位置をコピー
 
     let wk_node2pos = wknd[2] // 2:j3とj4の間の関節
@@ -151,17 +151,17 @@ export default function Home() {
     const wkdistance1 = joint_length[0] + joint_length[1] // 間接の０⇒１の間の距離と１⇒２の間の距離の和
     const wkdistance2 = joint_length[2] // 間接の２⇒３の間の距離
     const wkdistance1_mini = Math.abs(joint_length[0] - joint_length[1])  //間接の０⇒１の間の距離と間接の１⇒２の間の距離の差（それ以上は近づけない）
-    let wkdistance3 = Math.min(wkdistance1 + wkdistance2, distance(st,tg))  //基点から「3:掴む部分の位置」までの距離（関節間の距離の最大まで）をワークエリアにセット
+    let wkdistance3 = Math.min(wkdistance1 + wkdistance2, distance(st, tg))  //基点から「3:掴む部分の位置」までの距離（関節間の距離の最大まで）をワークエリアにセット
     let wk_0_2_distance_diff = -1 //ループ判断用のワークエリア
-    const deg1 = degree(st,tg)  //基点からターゲットへの角度を取得
+    const deg1 = degree(st, tg)  //基点からターゲットへの角度を取得
 
-    do{
-      const {a:wk_y, b:radius} = calc_side_1(wkdistance3,deg1.x)  //斜辺とターゲットへの角度からｙ座標を求める
-      const {a:wk_z, b:wk_x} = calc_side_1(radius,deg1.y) //ｘ座標とｚ座標を求める
-      wk_node3pos = pos_add(st,{x:wk_x,y:wk_y,z:wk_z})  //「3:掴む部分の位置」を仮決定
+    do {
+      const { a: wk_y, b: radius } = calc_side_1(wkdistance3, deg1.x)  //斜辺とターゲットへの角度からｙ座標を求める
+      const { a: wk_z, b: wk_x } = calc_side_1(radius, deg1.y) //ｘ座標とｚ座標を求める
+      wk_node3pos = pos_add(st, { x: wk_x, y: wk_y, z: wk_z })  //「3:掴む部分の位置」を仮決定
 
-      const {a:teihen, b:takasa} = calc_side_1(wkdistance2,wrist_deg) //wrist_degの入力値を元に「2:j3とj4の間の関節位置」を求める
-      const {a:teihen2, b:takasa2} = calc_side_1(takasa,deg1.y)
+      const { a: teihen, b: takasa } = calc_side_1(wkdistance2, wrist_deg) //wrist_degの入力値を元に「2:j3とj4の間の関節位置」を求める
+      const { a: teihen2, b: takasa2 } = calc_side_1(takasa, deg1.y)
 
 
       wk_node2pos = { ...wk_node3pos }
@@ -169,18 +169,18 @@ export default function Home() {
       wk_node2pos.y = wk_node2pos.y - teihen
       wk_node2pos.z = wk_node3pos.z - teihen2
 
-      wk_0_2_distance_diff = wkdistance1 - distance(st,wk_node2pos) //間接の０⇒１の間の距離と１⇒２の間の距離の和と基点と「2:j3とj4の間の関節位置」の距離の差を求める
-      if(distance(st,wk_node2pos) < wkdistance1_mini){  //基点と「2:j3とj4の間の関節位置」の距離が近づきすぎの場合は動作不可
+      wk_0_2_distance_diff = wkdistance1 - distance(st, wk_node2pos) //間接の０⇒１の間の距離と１⇒２の間の距離の和と基点と「2:j3とj4の間の関節位置」の距離の差を求める
+      if (distance(st, wk_node2pos) < wkdistance1_mini) {  //基点と「2:j3とj4の間の関節位置」の距離が近づきすぎの場合は動作不可
         console.log("impossible location!")
         return
       }
       wkdistance3 = wkdistance3 + wk_0_2_distance_diff  //次の計算の為、基点から「3:掴む部分の位置」までの距離より、間接の０⇒１の間の距離と１⇒２の間の距離の和と基点と「2:j3とj4の間の関節位置」の距離の差を引いておく
-    }while(wk_0_2_distance_diff < 0)  //間接の０⇒１の間の距離と１⇒２の間の距離の和より、基点と「2:j3とj4の間の関節位置」の距離が大きい場合はループする
+    } while (wk_0_2_distance_diff < 0)  //間接の０⇒１の間の距離と１⇒２の間の距離の和より、基点と「2:j3とj4の間の関節位置」の距離が大きい場合はループする
 
-    const {direction, angle1, angle2} = degree_base(wknd[0],wk_node2pos,joint_length[0],joint_length[1])  //基点から「2:j3とj4の間の関節」までの方向とj2とj3のそれぞれの角度を求める
-    const {a:node1y, b:node1r} = calc_side_1(joint_length[0],angle1)
-    const {a:node1z, b:node1x} = calc_side_1(node1r,direction)
-    const wk_node1pos = pos_add(wknd[0],{x:node1x, y:node1y, z:node1z}) //求めたj1の角度から「1:j2とj3の間の関節位置」を求める
+    const { direction, angle1, angle2 } = degree_base(wknd[0], wk_node2pos, joint_length[0], joint_length[1])  //基点から「2:j3とj4の間の関節」までの方向とj2とj3のそれぞれの角度を求める
+    const { a: node1y, b: node1r } = calc_side_1(joint_length[0], angle1)
+    const { a: node1z, b: node1x } = calc_side_1(node1r, direction)
+    const wk_node1pos = pos_add(wknd[0], { x: node1x, y: node1y, z: node1z }) //求めたj1の角度から「1:j2とj3の間の関節位置」を求める
 
     wknd[1] = wk_node1pos //「1:j2とj3の間の関節位置」
     wknd[2] = wk_node2pos //「2:j3とj4の間の関節位置」
@@ -191,11 +191,11 @@ export default function Home() {
     set_j1_rotate(direction)  //j1角度を更新
     set_j2_rotate(angle1) //j2角度を更新
     set_j3_rotate(angle2) //j3角度を更新
-    const wkdeg = degree(wk_node1pos,wk_node2pos) //j3のワールド角度を求める
-    if((Math.sign(wk_node2pos.x) !== Math.sign(wk_node3pos.x) && Math.sign(wk_node2pos.z) !== Math.sign(wk_node3pos.z)) ||
-      (wk_node2pos.x === 0 && wk_node3pos.x === 0) || (wk_node2pos.z === 0 && wk_node3pos.z === 0)){  //「3:掴む部分の位置」と「2:j3とj4の間の関節位置」の位置関係がｘとｚの０座標をまたぐ場合は別計算
+    const wkdeg = degree(wk_node1pos, wk_node2pos) //j3のワールド角度を求める
+    if ((Math.sign(wk_node2pos.x) !== Math.sign(wk_node3pos.x) && Math.sign(wk_node2pos.z) !== Math.sign(wk_node3pos.z)) ||
+      (wk_node2pos.x === 0 && wk_node3pos.x === 0) || (wk_node2pos.z === 0 && wk_node3pos.z === 0)) {  //「3:掴む部分の位置」と「2:j3とj4の間の関節位置」の位置関係がｘとｚの０座標をまたぐ場合は別計算
       set_j4_rotate(-wkdeg.x - wrist_deg) //j3のワールド角度とwrist_degよりj4角度を更新
-    }else{
+    } else {
       set_j4_rotate(wrist_deg - wkdeg.x)  //j3のワールド角度とwrist_degよりj4角度を更新
     }
   }
@@ -280,7 +280,7 @@ export default function Home() {
 
         // mqtt
         console.log("Connecting MQTT");
-        connectMQTT(() => (0));
+        connectMQTT("LSS", () => (0));
       }
     }
   }, [typeof window])

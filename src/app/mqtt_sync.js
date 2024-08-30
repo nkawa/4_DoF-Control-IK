@@ -3,11 +3,10 @@ import mqtt from 'mqtt';
 
 //import { v4 as uuidv4 } from 'uuid';  // for unique ID 
 
-const uniqueId = "LSS";//uuidv4(); // constant ID for client.
 const MQTT_SERVER_URL = "wss://sora2.uclab.jp/mqws"
 export var mqttclient = null;
 
-export const connectMQTT = (connectCallback) => {
+export const connectMQTT = (name, connectCallback) => {
     if (mqttclient == null) {
         const client = new mqtt.connect(MQTT_SERVER_URL, {
             protocolVersion: 4,  // MQTT v3.1.1
@@ -16,7 +15,7 @@ export const connectMQTT = (connectCallback) => {
         });
         client.on("connect", () => {
             console.log("MQTT Connected", this);
-            const msg = JSON.stringify({ myID: uniqueId, type: "LSS" });
+            const msg = JSON.stringify({ myID: name, type: "LSS" });
             client.publish("clients", msg);
             console.log("Sending My clientID", msg);
             mqttclient = client
