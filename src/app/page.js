@@ -7,6 +7,7 @@ import { VR_INFO_Camera, VR_Controller_Right, VR_mode_detector, add_vr_component
 export default function Home() {
   const [rendered, set_rendered] = React.useState(false)
   const [trigger, set_trigger] = React.useState(false)
+  const [abutton, set_abutton] = React.useState(false)
   const [grip, set_grip] = React.useState(false)
   const [grip_state, set_grp_state] = React.useState(0)
   const robotNameList = ["4_DoF"]
@@ -32,7 +33,7 @@ export default function Home() {
   let registered = false
 
   const joint_pos = { //各パーツの相対位置
-    j0: { x: 0, y: 1.2, z: -0.4 }, j1: { x: 0, y: 0.046, z: 0 },
+    j0: { x: 0, y: 1.0, z: -0.5 }, j1: { x: 0, y: 0.046, z: 0 },
     j2: { x: 0, y: 0.0538, z: 0 }, j3: { x: 0, y: 0.14015, z: 0 }, j4: { x: 0, y: 0.16325, z: 0 },
     j5_l: { x: 0.0128, y: 0.05075, z: -0.005 }, j5_r: { x: -0.0128, y: 0.05075, z: -0.005 },
     j6: { x: 0, y: 0.04605, z: 0 }
@@ -122,6 +123,7 @@ export default function Home() {
         {
           grip,
           trigger,
+          abutton,
           pos: target,
           ori: { x: 0, y: 0, z: 0 },
           rotate: [j1_rotate, j2_rotate, j3_rotate, j4_rotate, j5_rotate],
@@ -275,7 +277,7 @@ export default function Home() {
           }
         });
 
-        add_vr_component(AFRAME, { set_target, set_grip, set_trigger });
+        add_vr_component(AFRAME, { set_target, set_grip, set_trigger, set_abutton });
         VR_mode_detector(AFRAME);
 
         // mqtt

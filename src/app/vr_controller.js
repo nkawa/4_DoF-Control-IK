@@ -36,7 +36,7 @@ export const VR_mode_detector = (myaframe) => {
 }
 
 export const add_vr_component = (myaframe, props) => {
-    const { set_target, set_trigger, set_grip } = props;
+    const { set_target, set_trigger, set_grip, set_abutton } = props;
     myaframe.registerComponent('vr-ctrl-listener', {
         init: function () {
             const txt = document.getElementById("txt");
@@ -64,6 +64,14 @@ export const add_vr_component = (myaframe, props) => {
                 console.log("value", "Right grip up");
                 txt.setAttribute("value", "Right TriggerUp");
                 set_trigger(false);
+            });
+            this.el.addEventListener('abuttondown', function (event) {
+                txt.setAttribute("value", "Right A-button down");
+                set_abutton(true);
+            });
+            this.el.addEventListener('abuttonup', function (event) {
+                txt.setAttribute("value", "Right A-button Up");
+                set_abutton(false);
             });
 
         },
