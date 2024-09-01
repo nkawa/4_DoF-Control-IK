@@ -8,8 +8,10 @@ export default function Home() {
   const [rendered, set_rendered] = React.useState(false)
   const [trigger, set_trigger] = React.useState(false)
   const [abutton, set_abutton] = React.useState(false)
+  const [bbutton, set_bbutton] = React.useState(false)
   const [grip, set_grip] = React.useState(false)
   const [grip_state, set_grp_state] = React.useState(0)
+  const [vr_quartanion, set_vr_quartanion] = React.useState({})
   const robotNameList = ["4_DoF"]
   const [robotName, set_robotName] = React.useState(robotNameList[0])
   const [j1_rotate, set_j1_rotate] = React.useState(0)
@@ -124,8 +126,9 @@ export default function Home() {
           grip,
           trigger,
           abutton,
+          bbutton,
           pos: target,
-          ori: { x: 0, y: 0, z: 0 },
+          ori: vr_quartanion,
           rotate: [j1_rotate, j2_rotate, j3_rotate, j4_rotate, j5_rotate],
         }
       );
@@ -277,7 +280,7 @@ export default function Home() {
           }
         });
 
-        add_vr_component(AFRAME, { set_target, set_grip, set_trigger, set_abutton });
+        add_vr_component(AFRAME, { set_target, set_grip, set_trigger, set_abutton, set_bbutton, set_vr_quartanion });
         VR_mode_detector(AFRAME);
 
         // mqtt

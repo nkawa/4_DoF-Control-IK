@@ -36,7 +36,7 @@ export const VR_mode_detector = (myaframe) => {
 }
 
 export const add_vr_component = (myaframe, props) => {
-    const { set_target, set_trigger, set_grip, set_abutton } = props;
+    const { set_target, set_trigger, set_grip, set_abutton, set_bbutton, set_vr_quartanion } = props;
     myaframe.registerComponent('vr-ctrl-listener', {
         init: function () {
             const txt = document.getElementById("txt");
@@ -73,6 +73,14 @@ export const add_vr_component = (myaframe, props) => {
                 txt.setAttribute("value", "Right A-button Up");
                 set_abutton(false);
             });
+            this.el.addEventListener('bbuttondown', function (event) {
+                txt.setAttribute("value", "Right B-button down");
+                set_bbutton(true);
+            });
+            this.el.addEventListener('bbuttonup', function (event) {
+                txt.setAttribute("value", "Right B-button Up");
+                set_bbutton(false);
+            });
 
         },
         tick: function () {
@@ -87,6 +95,7 @@ export const add_vr_component = (myaframe, props) => {
             // we need to check VR mode.
             if (myaframe.vrmode) {
                 set_target({ x: p.x, y: p.y, z: p.z + 0.15 });
+                set_vr_quartanion(q);
             }
 
             txt3.setAttribute("value", "Q: " + q.x.toFixed(2) + ", " + q.y.toFixed(2) + ", " + q.z.toFixed(2) + ", " + q.w.toFixed(2));
