@@ -118,6 +118,12 @@ export default function Home() {
       open_gripper();
     }
   }, [grip])
+  
+  React.useEffect(() => {
+    if(nodes.length > 0){
+      WRIST_IK(source,target,nodes)
+    }
+  },[wrist_deg])
 
   React.useEffect(() => {
     if (mqttclient != null) {
@@ -182,11 +188,14 @@ export default function Home() {
       wkdistance3 = wkdistance3 + wk_0_2_distance_diff  //次の計算の為、基点から「3:掴む部分の位置」までの距離より、間接の０⇒１の間の距離と１⇒２の間の距離の和と基点と「2:j3とj4の間の関節位置」の距離の差を引いておく
     } while (wk_0_2_distance_diff < 0)  //間接の０⇒１の間の距離と１⇒２の間の距離の和より、基点と「2:j3とj4の間の関節位置」の距離が大きい場合はループする
 
-    const { direction, angle1, angle2 } = degree_base(wknd[0], wk_node2pos, joint_length[0], joint_length[1])  //基点から「2:j3とj4の間の関節」までの方向とj2とj3のそれぞれの角度を求める
-    const { a: node1y, b: node1r } = calc_side_1(joint_length[0], angle1)
-    const { a: node1z, b: node1x } = calc_side_1(node1r, direction)
-    const wk_node1pos = pos_add(wknd[0], { x: node1x, y: node1y, z: node1z }) //求めたj1の角度から「1:j2とj3の間の関節位置」を求める
+    const jouken1 = (Math.sign(wk_node2pos.x) !== Math.sign(wk_node3pos.x))
+    const jouken2 = (Math.sign(wk_node2pos.z) !== Math.sign(wk_node3pos.z)) //「3:掴む部分の位置」と「2:j3とj4の間の関節位置」の位置関係がｘとｚの０座標をまたぐ場合は別計算
 
+    const {direction, angle1, angle2} = degree_base((jouken1 || jouken2),wknd[0],wk_node2pos,joint_length[0],joint_length[1])  //基点から「2:j3とj4の間の関節」までの方向とj2とj3のそれぞれの角度を求める
+    const {a:node1y, b:node1r} = calc_side_1(joint_length[0],angle1)
+    const {a:node1z, b:node1x} = calc_side_1(node1r,direction)
+    const wk_node1pos = pos_add(wknd[0],{x:node1x, y:node1y, z:node1z}) //求めたj1の角度から「1:j2とj3の間の関節位置」を求める
+    
     wknd[1] = wk_node1pos //「1:j2とj3の間の関節位置」
     wknd[2] = wk_node2pos //「2:j3とj4の間の関節位置」
     wknd[3] = wk_node3pos //「3:掴む部分の位置」
@@ -196,16 +205,19 @@ export default function Home() {
     set_j1_rotate(direction)  //j1角度を更新
     set_j2_rotate(angle1) //j2角度を更新
     set_j3_rotate(angle2) //j3角度を更新
-    const wkdeg = degree(wk_node1pos, wk_node2pos) //j3のワールド角度を求める
-    if ((Math.sign(wk_node2pos.x) !== Math.sign(wk_node3pos.x) && Math.sign(wk_node2pos.z) !== Math.sign(wk_node3pos.z)) ||
-      (wk_node2pos.x === 0 && wk_node3pos.x === 0) || (wk_node2pos.z === 0 && wk_node3pos.z === 0)) {  //「3:掴む部分の位置」と「2:j3とj4の間の関節位置」の位置関係がｘとｚの０座標をまたぐ場合は別計算
-      set_j4_rotate(-wkdeg.x - wrist_deg) //j3のワールド角度とwrist_degよりj4角度を更新
-    } else {
-      set_j4_rotate(wrist_deg - wkdeg.x)  //j3のワールド角度とwrist_degよりj4角度を更新
+
+    const wkdeg = degree(wk_node1pos,wk_node2pos) //j3のワールド角度を求める
+    let j4_rot = 0
+    if(Math.sign(wkdeg.y) === Math.sign(direction)){
+      j4_rot = wrist_deg - wkdeg.x
+    }else{
+      j4_rot =  wkdeg.x + Number.parseFloat(wrist_deg)
     }
+    set_j4_rotate(j4_rot)  //j3のワールド角度とwrist_degよりj4角度を更新
   }
 
-  const degree_base = (s_pos, t_pos, side_a, side_b) => {
+  const degree_base = (flg, s_pos, t_pos, side_a, side_b)=>{
+
     const side_c = distance(s_pos, t_pos)
     const diff_x = (t_pos.x + 10) - (s_pos.x + 10)
     const diff_y = (t_pos.y + 10) - (s_pos.y + 10)
@@ -215,9 +227,19 @@ export default function Home() {
     if (Math.abs(direction) === 180) {
       direction = 180
     }
+    if(flg){
+      if(direction > 0){
+        direction = direction - 180
+      }else{
+        direction = direction + 180
+      }
+    }
 
-    let angle_base = Math.round((Math.atan2(Math.sqrt(side_c ** 2 - diff_y ** 2), diff_y) * 180 / Math.PI) * 10000) / 10000
-    if (isNaN(angle_base)) angle_base = 0
+    let angle_base = Math.round((Math.atan2(Math.sqrt(side_c ** 2 - diff_y ** 2), diff_y)*180/Math.PI)*10000)/10000
+    if(isNaN(angle_base)) angle_base = 0
+    if(flg){
+      angle_base = angle_base * -1
+    }
 
     let angle_B = Math.round((Math.acos((side_a ** 2 + side_c ** 2 - side_b ** 2) / (2 * side_a * side_c)) * 180 / Math.PI) * 10000) / 10000
     let angle_C = Math.round((Math.acos((side_a ** 2 + side_b ** 2 - side_c ** 2) / (2 * side_a * side_b)) * 180 / Math.PI) * 10000) / 10000
