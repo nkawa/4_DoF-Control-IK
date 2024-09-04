@@ -94,7 +94,7 @@ export const add_vr_component = (myaframe, props) => {
             //
             // we need to check VR mode.
             if (myaframe.vrmode) {
-                set_target({ x: p.x, y: p.y, z: p.z + 0.15 });
+                set_target({ x: p.x, y: p.y, z: p.z - 0.15 });
                 set_vr_quartanion(q);
             }
 

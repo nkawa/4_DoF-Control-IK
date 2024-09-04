@@ -19,6 +19,7 @@ export default function Home() {
   const [j3_rotate, set_j3_rotate] = React.useState(0)
   const [j4_rotate, set_j4_rotate] = React.useState(0)
   const [j5_rotate, set_j5_rotate] = React.useState(0)
+  const [ik_finished, set_ik_finished] = React.useState(0)
   const [c_pos_x, set_c_pos_x] = React.useState(0)
   const [c_pos_y, set_c_pos_y] = React.useState(0) // 0.25
   const [c_pos_z, set_c_pos_z] = React.useState(0) // 0.4
@@ -32,6 +33,9 @@ export default function Home() {
   const [wrist_deg, set_wrist_deg] = React.useState(90)
   const [box_scale, set_box_scale] = React.useState("0.02 0.02 0.02")
   const [box_visible, set_box_visible] = React.useState(false)
+
+  const lastMQMsg = React.useRef(""); // 最後に送付したメッセージ（JSON文字列）
+  const lastMQTime = React.useRef(0); // 最後に送付した時刻
   let registered = false
 
   const joint_pos = { //各パーツの相対位置
@@ -118,38 +122,49 @@ export default function Home() {
       open_gripper();
     }
   }, [grip])
-  
-  React.useEffect(() => {
-    if(nodes.length > 0){
-      WRIST_IK(source,target,nodes)
-    }
-  },[wrist_deg])
+
+  //  React.useEffect(() => {
+  //    if(nodes.length > 0){
+  //      WRIST_IK(source,target,nodes)
+  //    }
+  //  },[wrist_deg])
 
   React.useEffect(() => {
     if (mqttclient != null) {
-      const msg = JSON.stringify(
-        {
-          grip,
-          trigger,
-          abutton,
-          bbutton,
-          pos: target,
-          ori: vr_quartanion,
-          rotate: [j1_rotate, j2_rotate, j3_rotate, j4_rotate, j5_rotate],
-        }
-      );
-      // 毎回送るのはよくないと思うけどな。。。
+      const dt = new Date().getTime()
+      if (dt - lastMQTime.current < 70) {// less than 70msec
+        return
+      }
+      const newMsg = {
+        grip,
+        trigger,
+        abutton,
+        bbutton,
+        pos: target,
+        ori: vr_quartanion,
+        rotate: [j1_rotate, j2_rotate, j3_rotate, j4_rotate, j5_rotate],
+      }
+      const msg = JSON.stringify(newMsg)
+
+      if (msg == lastMQMsg.current) { // 同じであれば送らない
+        return
+      }
       mqttclient.publish('lss4dof/state', msg);
+      lastMQMsg.current = msg
+
     } else {
       //      console.log("MQTT ", mqttclient);
     }
-  }, [j1_rotate, j2_rotate, j3_rotate, j4_rotate, j5_rotate])
+  }, [ik_finished]);
+  //[j1_rotate, j2_rotate, j3_rotate, j4_rotate, j5_rotate])
 
 
 
   React.useEffect(() => {
     if (nodes.length > 0) {
       WRIST_IK(source, target, nodes)
+      // ここでMQTT変更を出す
+      set_ik_finished((v) => v + 1)
     }
   }, [target, wrist_deg])
 
@@ -191,11 +206,11 @@ export default function Home() {
     const jouken1 = (Math.sign(wk_node2pos.x) !== Math.sign(wk_node3pos.x))
     const jouken2 = (Math.sign(wk_node2pos.z) !== Math.sign(wk_node3pos.z)) //「3:掴む部分の位置」と「2:j3とj4の間の関節位置」の位置関係がｘとｚの０座標をまたぐ場合は別計算
 
-    const {direction, angle1, angle2} = degree_base((jouken1 || jouken2),wknd[0],wk_node2pos,joint_length[0],joint_length[1])  //基点から「2:j3とj4の間の関節」までの方向とj2とj3のそれぞれの角度を求める
-    const {a:node1y, b:node1r} = calc_side_1(joint_length[0],angle1)
-    const {a:node1z, b:node1x} = calc_side_1(node1r,direction)
-    const wk_node1pos = pos_add(wknd[0],{x:node1x, y:node1y, z:node1z}) //求めたj1の角度から「1:j2とj3の間の関節位置」を求める
-    
+    const { direction, angle1, angle2 } = degree_base((jouken1 || jouken2), wknd[0], wk_node2pos, joint_length[0], joint_length[1])  //基点から「2:j3とj4の間の関節」までの方向とj2とj3のそれぞれの角度を求める
+    const { a: node1y, b: node1r } = calc_side_1(joint_length[0], angle1)
+    const { a: node1z, b: node1x } = calc_side_1(node1r, direction)
+    const wk_node1pos = pos_add(wknd[0], { x: node1x, y: node1y, z: node1z }) //求めたj1の角度から「1:j2とj3の間の関節位置」を求める
+
     wknd[1] = wk_node1pos //「1:j2とj3の間の関節位置」
     wknd[2] = wk_node2pos //「2:j3とj4の間の関節位置」
     wknd[3] = wk_node3pos //「3:掴む部分の位置」
@@ -206,17 +221,17 @@ export default function Home() {
     set_j2_rotate(angle1) //j2角度を更新
     set_j3_rotate(angle2) //j3角度を更新
 
-    const wkdeg = degree(wk_node1pos,wk_node2pos) //j3のワールド角度を求める
+    const wkdeg = degree(wk_node1pos, wk_node2pos) //j3のワールド角度を求める
     let j4_rot = 0
-    if(Math.sign(wkdeg.y) === Math.sign(direction)){
+    if (Math.sign(wkdeg.y) === Math.sign(direction)) {
       j4_rot = wrist_deg - wkdeg.x
-    }else{
-      j4_rot =  wkdeg.x + Number.parseFloat(wrist_deg)
+    } else {
+      j4_rot = wkdeg.x + Number.parseFloat(wrist_deg)
     }
     set_j4_rotate(j4_rot)  //j3のワールド角度とwrist_degよりj4角度を更新
   }
 
-  const degree_base = (flg, s_pos, t_pos, side_a, side_b)=>{
+  const degree_base = (flg, s_pos, t_pos, side_a, side_b) => {
 
     const side_c = distance(s_pos, t_pos)
     const diff_x = (t_pos.x + 10) - (s_pos.x + 10)
@@ -227,17 +242,17 @@ export default function Home() {
     if (Math.abs(direction) === 180) {
       direction = 180
     }
-    if(flg){
-      if(direction > 0){
+    if (flg) {
+      if (direction > 0) {
         direction = direction - 180
-      }else{
+      } else {
         direction = direction + 180
       }
     }
 
-    let angle_base = Math.round((Math.atan2(Math.sqrt(side_c ** 2 - diff_y ** 2), diff_y)*180/Math.PI)*10000)/10000
-    if(isNaN(angle_base)) angle_base = 0
-    if(flg){
+    let angle_base = Math.round((Math.atan2(Math.sqrt(side_c ** 2 - diff_y ** 2), diff_y) * 180 / Math.PI) * 10000) / 10000
+    if (isNaN(angle_base)) angle_base = 0
+    if (flg) {
       angle_base = angle_base * -1
     }
 
